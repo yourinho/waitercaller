@@ -10,13 +10,19 @@ from flask.ext.login import LoginManager
 from flask.ext.login import login_required
 from flask.ext.login import login_user
 from flask.ext.login import logout_user
+from flask.ext.login import current_user
 
 from mockdbhelper import MockDBHelper as DBHelper
 from user import User
 from passwordhelper import PasswordHelper
+from bitlyhelper import BitlyHelper
+
+import config
+import datetime
 
 DB = DBHelper()
 PH = PasswordHelper()
+BH = BitlyHelper()
 
 app = Flask(__name__)
 app.secret_key = "KEjD0UYZ/1YeciecjTW/m7qwczhQRVu7Zz9Iu0EaRAPn9uuWEuKz+VzsjXGplWQ2Dz7ICQRiFFTlqnnIuWCNrDDA3TJ5R9XaZg+T"
@@ -26,7 +32,7 @@ login_manager = LoginManager(app)
 @app.route("/")
 def home():
     # return "Under construction"
-    return render_template("home.html")
+    return render_template("home_1.html")
 
 
 @app.route("/register", methods=["POST"])
@@ -39,8 +45,8 @@ def register():
         print("Passwords don't match")
         return redirect(url_for("home"))
     if DB.get_user(email):
-    	# Debug:
-        print("We already have user with this email")
+        # Debug:
+        print("We already have a user with this email")
         return redirect(url_for("home"))
     salt = PH.get_salt()
     hashed = PH.get_hash(pw1 + salt)
@@ -49,12 +55,6 @@ def register():
     print("User list:")
     DB.print_users()
     return redirect(url_for('home'))
-
-
-@app.route("/account")
-@login_required
-def account():
-    return "You are logged in"
 
 
 @app.route("/login", methods=["POST"])
@@ -78,10 +78,64 @@ def logout():
     return redirect(url_for("home"))
 
 
+@app.route("/account")
+@login_required
+def account():
+    tables = DB.get_tables(current_user.get_id())
+    return render_template("account.html", tables=tables)
+
+
+@app.route("/account/createtable", methods=["POST"])
+@login_required
+def account_createtable():
+    tablename = request.form.get("tablenumber")
+    # We are using current_user method from FlaskLogin here.
+    tableid = DB.add_table(tablename, current_user.get_id())
+    # new_url = config.base_url + "newrequest/" + tableid
+    new_url = BH.shorten_url(config.base_url + "newrequest/" + tableid)
+    DB.update_table(tableid, new_url)
+    return redirect(url_for('account'))
+
+
+@app.route("/account/deletetable")
+@login_required
+def account_deletetable():
+    tableid = request.args.get("tableid")
+    DB.delete_table(tableid)
+    return redirect(url_for('account'))
+
+
+@app.route("/newrequest/<tid>")
+def new_request(tid):
+    DB.add_request(tid, datetime.datetime.now())
+    return "Your request has been logged and a waiter will be with you shortly"
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    now = datetime.datetime.now()
+    requests = DB.get_requests(current_user.get_id())
+    for req in requests:
+        delta_seconds = (now - req["time"]).seconds
+        req['wait_minutes'] = "{}.{}".format(
+            (delta_seconds/60), str(delta_seconds % 60).zfill(2))
+    return render_template("dashboard.html", requests=requests)
+
+
+@app.route("/dashboard/resolve")
+@login_required
+def dashboard_resolve():
+    request_id = request.args.get("request_id")
+    DB.delete_request(request_id)
+    return redirect(url_for('dashboard'))
+
 # The decorator indicates to Flask-Login that this is the function we want to use
 # to handle users who already have a cookie assigned,
 # and it'll pass the user_id variable from the cookie to this function whenever a user visits our site,
 # which already has one.
+
+
 @login_manager.user_loader
 def load_user(user_id):
     user_password = DB.get_user(user_id)
