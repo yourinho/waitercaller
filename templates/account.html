@@ -22,7 +22,7 @@
 						<form class="form-inline" action="/account/deletetable">
 							<tr>
 								<td>{{table.number}}</td>
-								<td>{{table.url}}</td>
+								<td> <a href="{{table.url}}" target="_blank">{{table.url}}</a></td>
 								<td><input type="submit" value="Delete" class="form-control"></td>
 								<input type="text" name="tableid" value="{{table._id}}" hidden>
 							</tr>
@@ -31,8 +31,18 @@
 				</table>
 				<h2>Add new table</h2>
 				<form class="form-inline" action="/account/createtable" method="POST">
-					<input type="text" name="tablenumber" placeholder="Table number or name" class="form-control">
-					<input type="submit" value="Create" class="btn btn-primary">
+					<div class="form-group">
+						{% if createTableForm.tablenumber.errors %}
+							<ul class="errors">
+								{% for error in createTableForm.tablenumber.errors %}
+									<li>{{error}}</li>
+								{% endfor %}
+							</ul>
+						{% endif %}
+						{{ createTableForm.csrf_token }}
+						{{ createTableForm.tablenumber(class="form-control", placeholder="Table number or name") }}
+						{{ createTableForm.submit(value="Create", class="btn btn-primary") }}
+					</div>
 				</form>
 			</div>
 		</div>
