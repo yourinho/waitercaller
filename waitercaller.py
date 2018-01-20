@@ -12,7 +12,6 @@ from flask.ext.login import login_user
 from flask.ext.login import logout_user
 from flask.ext.login import current_user
 
-from mockdbhelper import MockDBHelper as DBHelper
 from user import User
 from passwordhelper import PasswordHelper
 from bitlyhelper import BitlyHelper
@@ -22,6 +21,11 @@ from forms import CreateTableForm
 
 import config
 import datetime
+
+if config.test
+    from mockdbhelper import MockDBHelper as DBHelper
+else:
+    from dbhelper import DBHelper
 
 DB = DBHelper()
 PH = PasswordHelper()
@@ -95,7 +99,11 @@ def account_createtable():
         # We are using current_user method from FlaskLogin here.
         tableid = DB.add_table(form.tablenumber.data, current_user.get_id())
         # new_url = config.base_url + "newrequest/" + tableid
-        new_url = BH.shorten_url(config.base_url + "newrequest/" + tableid)
+        # We are using str(tableid) because we are using ObjectId for Mongo.
+        # This will ensure that tableid is always a string before we concatenate
+        # it to our URL.
+        new_url = BH.shorten_url(
+            config.base_url + "newrequest/" + str(tableid))
         DB.update_table(tableid, new_url)
         return redirect(url_for('account'))
     return render_template("account.html",
