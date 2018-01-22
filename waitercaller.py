@@ -22,7 +22,7 @@ from forms import CreateTableForm
 import config
 import datetime
 
-if config.test
+if config.test:
     from mockdbhelper import MockDBHelper as DBHelper
 else:
     from dbhelper import DBHelper
